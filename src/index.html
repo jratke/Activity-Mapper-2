@@ -4,18 +4,54 @@
     <meta charset="utf-8">
     <title>Activity Maps Using OpenLayers</title>
     <style>
-      #map { width: 1200px; height: 800px; }
+      #map { width: 1000px; height: 700px; }
+* {
+  box-sizing: border-box;
+}
+
+body, html {
+  height: 100vh;
+}
+
+.column {
+  float: left;
+  padding: 10px;
+}
+
+.left {
+  width: 80%;
+}
+
+.right {
+  width: 20%;
+  height: 100vh;
+  overflow: scroll;
+}
+
+/* Clear floats after the columns */
+.row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
     </style>
   </head>
   <body>
-    <div id="map"></div>
-    <div id="controls">
-      <label><input id="show-runs" type="checkbox" checked >Running</label>
-      <label><input id="show-walks" type="checkbox" checked >Walking</label>
-      <label><input id="show-cycling" type="checkbox" checked >Cycling</label>
-      <label><input id="show-others" type="checkbox" checked >Others</label>
+    <div class="row">
+      <div class="column left">
+        <div id="map"></div>
+        <div id="controls">
+          <label><input id="show-runs" type="checkbox" checked >Running</label>
+          <label><input id="show-walks" type="checkbox" checked >Walking</label>
+          <label><input id="show-cycling" type="checkbox" checked >Cycling</label>
+          <label><input id="show-others" type="checkbox" checked >Others</label>
+        </div>
+        <div id="info">&nbsp;</div>
+      </div>
+      <div class="column right">
+         <div class="list" id="actlist"></div>
+      </div>
     </div>
-    <div id="info">&nbsp;</div>
     <script src="./index.js"></script>
   </body>
 </html>

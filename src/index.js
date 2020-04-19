@@ -9,10 +9,14 @@ import VectorSource from 'ol/source/Vector';
 import {Circle as CircleStyle, Fill, Stroke, Style} from 'ol/style';
 import OSM from 'ol/source/OSM';
 import {fromLonLat} from 'ol/proj';
+import { csv } from 'd3-request';
 
 import allgpx from "../data/gpx/*.gpx";
+//import cardio from "../data/csv/cardioActivities.csv";
 
 var myassets = Object.entries(allgpx);
+
+//console.log(cardio);
 
 var showRuns = true, showWalks = true, showCycling = true, showOthers = true;
 var showRunsBox = document.getElementById('show-runs');
@@ -52,6 +56,59 @@ var map = new Map({
       maxZoom: 18
   })
 });
+
+var activitiesWithGPX = 0;
+csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
+  if (error) throw error;
+
+  var alist = "<ul class=\"top\">";
+  for (var i = 0; i < data.length; i++) {
+    if (data[i]["GPX File"]) {
+      activitiesWithGPX++;
+      alist += "<li>" + data[i]["Date"] + " - " + data[i]["Type"] + "</li>";
+    }
+  }
+  console.log('Activites with gps data: ' + activitiesWithGPX);
+  alist += "</ul>";
+  document.getElementById('actlist').innerHTML = alist;  
+});
+
+// load activity
+/*
+var client = new XMLHttpRequest();
+client.open('GET', './data/csv/cardioActivities.csv');
+client.onload = function() {
+  var csv = client.responseText;
+  var features = [];
+
+  var prevIndex = csv.indexOf('\n') + 1; // scan past the header line
+
+  var curIndex;
+  while ((curIndex = csv.indexOf('\n', prevIndex)) != -1) {
+    var line = csv.substr(prevIndex, curIndex - prevIndex).split(',');
+    prevIndex = curIndex + 1;
+
+    //var coords = fromLonLat([parseFloat(line[4]), parseFloat(line[3])]);
+    //if (isNaN(coords[0]) || isNaN(coords[1])) {
+      // guard against bad data
+    //  continue;
+    //}
+
+    //features.push(new Feature({
+    //  mass: parseFloat(line[1]) || 0,
+    //  year: parseInt(line[2]) || 0,
+    //  geometry: new Point(coords)
+    //}));
+    console.log('1: ' + line[1] + '13: ' + line[13]);
+  }
+
+};
+client.onerror = function() {
+  var error = client.error;
+  console.log('xhr error' + error);
+}
+client.send();
+*/
 
 function myStyleFunction(feature, resolution) {
   const name = feature.get('name');

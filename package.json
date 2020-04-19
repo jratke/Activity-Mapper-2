@@ -6,11 +6,12 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "parcel src/index.html",
-    "build": "parcel build --public-url . src/index.html"
+    "build": "parcel build --experimental-scope-hoisting --public-url . src/index.html"
   },
   "author": "JR4",
   "license": "ISC",
   "dependencies": {
+    "d3-request": "^1.0.6",
     "ol": "^6.3.0",
     "parcel": "^1.12.4"
   }
