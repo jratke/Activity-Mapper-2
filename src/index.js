@@ -74,32 +74,24 @@ function myStyleFunction(feature, resolution) {
 }
 
 function actClicked(e) {
-  console.log("element " + this.id + " clicked");
+  //console.log("element " + this.id + " clicked");
 
   let aid = this.id;
-  let actStr = actDict[aid].date + " " + actDict[aid].type;
+  let actStr = actDict[aid].date + " " + actDict[aid].type + "<br>" +
+      "Distance (mi) " + actDict[aid].distance + "<br>" +
+      "Duration: " + actDict[aid].duration + "<br>" +
+      "Average Pace: " + actDict[aid].avepace + "<br>" +
+      "Notes: " + actDict[aid].notes  + "<br>" +
+      "Extent: " + actDict[aid].vsrc.getExtent();
   document.getElementById('info').innerHTML = actStr;
 }
 
-var activitiesWithGPX = 0;
-var activitiesWithoutGPX = 0;
 csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
   if (error) throw error;
 
   var alist = "<ul class=\"top\">";
   for (let i = 0; i < data.length; i++) {
     if (data[i]["GPX File"]) {
-      activitiesWithGPX++;
-
-      /*
-      var daytime = data[i]["Date"].split(" ", 2);
-      var day = daytime[0].split("-", 3);
-      var yy = day[0];
-      var mm = day[1];
-      var dd = day[2];
-      var atype = data[i]["Type"];
-      var actObj = new Object;
-      */
       var fileName = data[i]["Date"].replace(" ", "-").replace(/\:/g,"");
 
       var gpx = new GPX({
@@ -114,48 +106,39 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
 
       map.addLayer(new VectorLayer({
         source: vectSrc,
-        style: styleMap[data[i]["Type"]] //myStyleFunction
+        style: styleMap[data[i]["Type"]]
       }));
 
       actDict[data[i]["Activity Id"]] = {
+        avepace: data[i]["Average Pace"],
         date: data[i]["Date"],
         distance: data[i]["Distance (mi)"],
         duration: data[i]["Duration"],
         notes: data[i]["Notes"],
         type: data[i]["Type"],
         vsrc: vectSrc,
-        //url: allgpx[fileName]    don't need this, anyway it's in the vectSrc
       };
 
       alist += "<li id=\"" + data[i]["Activity Id"] + "\">" + data[i]["Date"] + " - " + data[i]["Type"] + "</li>";
-    } else {
-      activitiesWithoutGPX++;
     }
   }
-  console.log('Activites with GPS data: ' + activitiesWithGPX);
-  console.log('Activites without GPS data: ' + activitiesWithoutGPX);
+
+  console.log('cardioActivities CSV data length ' + data.length);
+  console.log('Activites from CSV with GPS data: ' + Object.keys(actDict).length);
+  console.log('Number of gpx files in data/gpx/ '+ Object.keys(allgpx).length);
   alist += "</ul>";
 
   var htmlAList = document.getElementById('actlist');
   htmlAList.innerHTML = alist;
-
   var ulTop = htmlAList.childNodes;
   if (ulTop.length == 1 && ulTop[0].className == "top") {
     var nodeList = ulTop[0].childNodes;
     for (let i = 0; i < nodeList.length; i++) {
-      // TODO: use the map?
-      if (actDict[nodeList[i].id].type == "Running") {
-        nodeList[i].style.color = "blue";
-      } else if (actDict[nodeList[i].id].type == "Cycling") {
-        nodeList[i].style.color = "red";
-      } else if (actDict[nodeList[i].id].type == "Walking") {
-        nodeList[i].style.color = "green";
-      }
-
+      let aid = nodeList[i].id;
+      nodeList[i].style.color = styleMap[actDict[aid].type].getStroke().getColor();
       nodeList[i].onclick = actClicked;
     }
   }
-
 });
 
 var lastClickedLayer;
