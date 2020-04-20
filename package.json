@@ -1,12 +1,12 @@
 {
-  "name": "Activity-Mapper-2",
-  "version": "1.0.0",
+  "name": "ActivityMapper",
+  "version": "2.0.0",
   "description": "Map Outdoor Activities from GPX files",
   "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "parcel src/index.html",
-    "build": "parcel build --experimental-scope-hoisting --public-url . src/index.html"
+    "build": "parcel build --public-url . src/index.html"
   },
   "author": "JR4",
   "license": "ISC",

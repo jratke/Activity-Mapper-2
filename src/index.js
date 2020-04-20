@@ -12,11 +12,6 @@ import {fromLonLat} from 'ol/proj';
 import { csv } from 'd3-request';
 
 import allgpx from "../data/gpx/*.gpx";
-//import cardio from "../data/csv/cardioActivities.csv";
-
-var myassets = Object.entries(allgpx);
-
-//console.log(cardio);
 
 var showRuns = true, showWalks = true, showCycling = true, showOthers = true;
 var showRunsBox = document.getElementById('show-runs');
@@ -36,6 +31,10 @@ var walkStyle = new Style({
   stroke: new Stroke({ color: '#0f0', width: 2 })
 });
 
+var hikeStyle = new Style({
+  stroke: new Stroke({ color: '#0ff', width: 2 })
+});
+
 var otherStyle = new Style({
   stroke: new Stroke({ color: '#0f0', width: 2 })
 });
@@ -44,6 +43,16 @@ var clickStyle = new Style({
   stroke: new Stroke({ color: '#000', width: 3 })
 });
 
+var styleMap = {
+  Running: runStyle,
+  Cycling: cycleStyle,
+  Walking: walkStyle,
+  Hiking:  hikeStyle
+}
+
+// Dictionary of activities: key = activity id
+var actDict = {};
+
 var map = new Map({
   target: 'map',
   layers: [
@@ -51,86 +60,103 @@ var map = new Map({
   ],
   view: new View({
     center: fromLonLat([-87.6298, 41.8781]),
-      zoom: 10,
-      minZoom: 5,
-      maxZoom: 18
+    zoom: 12,
+    minZoom: 5,
+    maxZoom: 18
   })
 });
 
-var activitiesWithGPX = 0;
-csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
-  if (error) throw error;
-
-  var alist = "<ul class=\"top\">";
-  for (var i = 0; i < data.length; i++) {
-    if (data[i]["GPX File"]) {
-      activitiesWithGPX++;
-      alist += "<li>" + data[i]["Date"] + " - " + data[i]["Type"] + "</li>";
-    }
-  }
-  console.log('Activites with gps data: ' + activitiesWithGPX);
-  alist += "</ul>";
-  document.getElementById('actlist').innerHTML = alist;  
-});
-
-// load activity
-/*
-var client = new XMLHttpRequest();
-client.open('GET', './data/csv/cardioActivities.csv');
-client.onload = function() {
-  var csv = client.responseText;
-  var features = [];
-
-  var prevIndex = csv.indexOf('\n') + 1; // scan past the header line
-
-  var curIndex;
-  while ((curIndex = csv.indexOf('\n', prevIndex)) != -1) {
-    var line = csv.substr(prevIndex, curIndex - prevIndex).split(',');
-    prevIndex = curIndex + 1;
-
-    //var coords = fromLonLat([parseFloat(line[4]), parseFloat(line[3])]);
-    //if (isNaN(coords[0]) || isNaN(coords[1])) {
-      // guard against bad data
-    //  continue;
-    //}
-
-    //features.push(new Feature({
-    //  mass: parseFloat(line[1]) || 0,
-    //  year: parseInt(line[2]) || 0,
-    //  geometry: new Point(coords)
-    //}));
-    console.log('1: ' + line[1] + '13: ' + line[13]);
-  }
-
-};
-client.onerror = function() {
-  var error = client.error;
-  console.log('xhr error' + error);
-}
-client.send();
-*/
-
 function myStyleFunction(feature, resolution) {
   const name = feature.get('name');
-  return name.startsWith('Run') ? runStyle : 
+  return name.startsWith('Run') ? runStyle :
          name.startsWith('Walk') ? walkStyle :
          name.startsWith('Cycl') ? cycleStyle : otherStyle;
 }
 
-for (var i = 0; i < myassets.length; i++) {
-    var gpx = new GPX({
-      url: myassets[i][1],
-      featureProjection: 'EPSG:3857'});
+function actClicked(e) {
+  console.log("element " + this.id + " clicked");
 
-    var src = new VectorSource({
-      format: gpx,
-      url: myassets[i][1]});
-
-    map.addLayer(new VectorLayer({
-        source: src,
-        style: myStyleFunction
-    }));
+  let aid = this.id;
+  let actStr = actDict[aid].date + " " + actDict[aid].type;
+  document.getElementById('info').innerHTML = actStr;
 }
+
+var activitiesWithGPX = 0;
+var activitiesWithoutGPX = 0;
+csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
+  if (error) throw error;
+
+  var alist = "<ul class=\"top\">";
+  for (let i = 0; i < data.length; i++) {
+    if (data[i]["GPX File"]) {
+      activitiesWithGPX++;
+
+      /*
+      var daytime = data[i]["Date"].split(" ", 2);
+      var day = daytime[0].split("-", 3);
+      var yy = day[0];
+      var mm = day[1];
+      var dd = day[2];
+      var atype = data[i]["Type"];
+      var actObj = new Object;
+      */
+      var fileName = data[i]["Date"].replace(" ", "-").replace(/\:/g,"");
+
+      var gpx = new GPX({
+        url: allgpx[fileName],
+        featureProjection: 'EPSG:3857'
+      });
+
+      var vectSrc = new VectorSource({
+        format: gpx,
+        url: allgpx[fileName]
+      });
+
+      map.addLayer(new VectorLayer({
+        source: vectSrc,
+        style: styleMap[data[i]["Type"]] //myStyleFunction
+      }));
+
+      actDict[data[i]["Activity Id"]] = {
+        date: data[i]["Date"],
+        distance: data[i]["Distance (mi)"],
+        duration: data[i]["Duration"],
+        notes: data[i]["Notes"],
+        type: data[i]["Type"],
+        vsrc: vectSrc,
+        //url: allgpx[fileName]    don't need this, anyway it's in the vectSrc
+      };
+
+      alist += "<li id=\"" + data[i]["Activity Id"] + "\">" + data[i]["Date"] + " - " + data[i]["Type"] + "</li>";
+    } else {
+      activitiesWithoutGPX++;
+    }
+  }
+  console.log('Activites with GPS data: ' + activitiesWithGPX);
+  console.log('Activites without GPS data: ' + activitiesWithoutGPX);
+  alist += "</ul>";
+
+  var htmlAList = document.getElementById('actlist');
+  htmlAList.innerHTML = alist;
+
+  var ulTop = htmlAList.childNodes;
+  if (ulTop.length == 1 && ulTop[0].className == "top") {
+    var nodeList = ulTop[0].childNodes;
+    for (let i = 0; i < nodeList.length; i++) {
+      // TODO: use the map?
+      if (actDict[nodeList[i].id].type == "Running") {
+        nodeList[i].style.color = "blue";
+      } else if (actDict[nodeList[i].id].type == "Cycling") {
+        nodeList[i].style.color = "red";
+      } else if (actDict[nodeList[i].id].type == "Walking") {
+        nodeList[i].style.color = "green";
+      }
+
+      nodeList[i].onclick = actClicked;
+    }
+  }
+
+});
 
 var lastClickedLayer;
 
