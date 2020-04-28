@@ -120,6 +120,7 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
   if (error) throw error;
 
   var alist = "<ul class=\"top\">";
+
   for (let i = 0; i < data.length; i++) {
     if (data[i]["GPX File"]) {
       var fileName = data[i]["Date"].replace(" ", "-").replace(/\:/g,"");
@@ -132,15 +133,32 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
           }),
           url: allgpx[fileName]
         });
+        vectSrc.set('actid', data[i]["Activity Id"]);
 
-        // This "works", but unfortuantely doesn't do anything useful because
-        // it can't be looked up by getting the features at a certain pixel.
-        vectSrc.addFeature(new Feature({ actid: data[i]["Activity Id"] }));
+        if (!firstAct) {
+          firstAct = data[i]["Activity Id"];
+        }
+
+        // The layers (and thus their features) are loaded asynchronously
+        // This is called when VectorSource actually completes loading
+        // the GPX data, so we now have the feature (which contains the
+        // geometry) created.
+        vectSrc.on('addfeature', function(e) {
+          //console.log(this.get('actid') + " is now " + vectSrc.getState());
+          let aid = this.get('actid');
+          e.feature.set('actid', aid);
+
+          if (aid == firstAct) {
+            console.log("first activity " + aid + "loaded and its extent is: " + this.getExtent());
+            // position the map based on the most recent activity
+            // (which is assumed to be the first one in the csv file)
+            map.getView().fit(this.getExtent());
+          }
+        });
 
         let layer = new VectorLayer({
           source: vectSrc,
           style: styleMap[data[i]["Type"]],
-          //actid: data[i]["Activity Id"]
         });
         map.addLayer(layer);
 
@@ -151,25 +169,11 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
           duration: data[i]["Duration"],
           notes: data[i]["Notes"],
           type: data[i]["Type"],
-          //vsrc: vectSrc,
           layer: layer
         };
 
         alist += "<li id=\"" + data[i]["Activity Id"] + "\">" + data[i]["Date"] + " - " + data[i]["Type"] + "</li>";
 
-        // TODO position the map based on the most recent activity
-        // (which is assumed to be the first one in the csv file)
-        // Unfortunately the layers (and thus their features) are loaded
-        // asynchronously, so the extent does not seem to be available
-        // at the time that this runs.
-        if (!firstAct) {
-          firstAct = data[i]["Activity Id"];
-          //var feature = actDict[firstAct].vsrc.getFeatures()[0];
-          //console.log("first feature of first activity: " + feature);
-          //var polygon = feature.getGeometry();
-          //console.log("first polygon of first feature: " + polygon);
-          //map.getView().fit(vectSrc.getExtent());
-        }
 
       }
       else {
@@ -214,12 +218,23 @@ var displayFeatureInfo = function(pixel) {
     var i, ii;
     for (i = 0, ii = features.length; i < ii; ++i) {
       info.push(features[i].get('name'));
-      //aids.push(features[i].get('actid'));
+
+      // Unfortunately, GPX format does not parse the <time> tag from a <trk> tag like it parses <name>
+      //info.push(features[i].get('time'));
+      // but we manually added the "actid" to each feature as it was loaded
+      //console.log(features[i].get('actid'));
+
+      // Amazingly, coordinate contains 4 values:  lat, lon, elevation, and time ("M")
+      /*
+      let firstCoord = features[i].getGeometry().getFirstCoordinate();
+      if (firstCoord.length == 4) {
+        var date = new Date(firstCoord[3]*1000);
+        console.log("date maybe " + date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + "-" + date.getHours() + "-" + date.getMinutes() + "-" + date.getSeconds())
+        // date.getDay will give day of week
+      }
+      */
     }
     document.getElementById('info').innerHTML = info.join(', ') || '(unknown)';
-
-    //if (aids.length)
-    //  console.log("feature actids: " + aids.join(', '));
   } else {
     document.getElementById('info').innerHTML = '&nbsp;';
   }
