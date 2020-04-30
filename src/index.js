@@ -9,6 +9,7 @@ import VectorSource from 'ol/source/Vector';
 import {Circle as CircleStyle, Fill, Stroke, Style} from 'ol/style';
 import OSM from 'ol/source/OSM';
 import {fromLonLat} from 'ol/proj';
+import {intersects} from 'ol/extent';
 import { csv } from 'd3-request';
 
 import allgpx from "../data/gpx/*.gpx";
@@ -40,7 +41,7 @@ var otherStyle = new Style({
 });
 
 var clickStyle = new Style({
-  stroke: new Stroke({ color: '#000', width: 3 })
+  stroke: new Stroke({ color: '#ffff00', width: 3 })    // TODO black outline around?
 });
 
 var styleMap = {
@@ -68,22 +69,17 @@ var map = new Map({
   view: view
 });
 
-function myStyleFunction(feature, resolution) {
-  const name = feature.get('name');
-  return name.startsWith('Run') ? runStyle :
-         name.startsWith('Walk') ? walkStyle :
-         name.startsWith('Cycl') ? cycleStyle : otherStyle;
-}
-
 var lastActivitySelected = null;
 var firstAct = null;
-var lastClickedLayer;
+var lastClickedLayer = null;
+var lastStyle = null;
 
-function hightlightLayer(layer) {
+function highlightLayer(layer) {
   if (lastClickedLayer != null) {
-    lastClickedLayer.setStyle(myStyleFunction);
+    lastClickedLayer.setStyle(lastStyle);
     lastClickedLayer.setZIndex(0);
   }
+  lastStyle = layer.getStyle();
   layer.setStyle(clickStyle);
   layer.setZIndex(10);
   lastClickedLayer = layer;
@@ -101,7 +97,7 @@ function activitySelected(e) {
 
   // modify the layer
   let layer = actDict[aid].layer;
-  hightlightLayer(layer);
+  highlightLayer(layer);
 
   let extent = actDict[aid].layer.getSource().getExtent();  //actDict[aid].vsrc.getExtent();
 
@@ -149,7 +145,7 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
           e.feature.set('actid', aid);
 
           if (aid == firstAct) {
-            console.log("first activity " + aid + "loaded and its extent is: " + this.getExtent());
+            //console.log("first activity " + aid + "loaded and its extent is: " + this.getExtent());
             // position the map based on the most recent activity
             // (which is assumed to be the first one in the csv file)
             map.getView().fit(this.getExtent());
@@ -162,6 +158,12 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
         });
         map.addLayer(layer);
 
+        // This doesn't make things much faster
+        //layer.once('change', function(e) {
+        //  if (!intersects(this.getSource().getExtent(), map.getView().calculateExtent()))
+        //    this.setVisible(false);
+        //});
+
         actDict[data[i]["Activity Id"]] = {
           avepace: data[i]["Average Pace"],
           date: data[i]["Date"],
@@ -173,8 +175,6 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
         };
 
         alist += "<li id=\"" + data[i]["Activity Id"] + "\">" + data[i]["Date"] + " - " + data[i]["Type"] + "</li>";
-
-
       }
       else {
         console.log("missing .gpx file in data/gpx/ for activity " + fileName);
@@ -199,52 +199,42 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
       nodeList[i].onclick = activitySelected;
     }
   }
-
-  //console.log("first act extent: " + actDict[firstAct].vsrc.getExtent());
 });
 
 
 var displayFeatureInfo = function(pixel) {
-  var features = [];
+  var acts = [];
+  var info = [];
+
   map.forEachFeatureAtPixel(pixel, function(feature) {
-  	features.push(feature);
+    acts.push(feature.get('actid'));
   });
 
-  //var aFeature = null;
-
-  if (features.length > 0) {
-    var info = [];
-    var aids = [];
-    var i, ii;
-    for (i = 0, ii = features.length; i < ii; ++i) {
-      info.push(features[i].get('name'));
-
+  if (acts.length > 0) {
+    for (var i = 0; i < acts.length; i++) {
       // Unfortunately, GPX format does not parse the <time> tag from a <trk> tag like it parses <name>
       //info.push(features[i].get('time'));
       // but we manually added the "actid" to each feature as it was loaded
-      //console.log(features[i].get('actid'));
 
       // Amazingly, coordinate contains 4 values:  lat, lon, elevation, and time ("M")
       /*
       let firstCoord = features[i].getGeometry().getFirstCoordinate();
       if (firstCoord.length == 4) {
         var date = new Date(firstCoord[3]*1000);
-        console.log("date maybe " + date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + "-" + date.getHours() + "-" + date.getMinutes() + "-" + date.getSeconds())
+        console.log("date: " + date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + "-" + date.getHours() + "-" + date.getMinutes() + "-" + date.getSeconds())
         // date.getDay will give day of week
       }
       */
+
+      let aid = acts[i];
+      let actStr = actDict[aid].date + " " + actDict[aid].type + " " + actDict[aid].distance + " mi " +
+                  "Dur: " + actDict[aid].duration + " " + "Pace: " + actDict[aid].avepace;
+      info.push(actStr);
     }
-    document.getElementById('info').innerHTML = info.join(', ') || '(unknown)';
+    document.getElementById('info').innerHTML = info.join('<br>') || '(unknown)';
   } else {
     document.getElementById('info').innerHTML = '&nbsp;';
   }
-};
-
-var highlightFeatures = function(pixel) {
-  // TODO just find the last feature and highlight that.
-  map.forEachFeatureAtPixel(pixel, function(feature, layer) {
-    hightlightLayer(layer);
-  });
 };
 
 function doToggle() {
@@ -301,6 +291,25 @@ map.on('pointermove', function(evt) {
 });
 
 map.on('click', function(evt) {
-  displayFeatureInfo(evt.pixel);
-  highlightFeatures(evt.pixel);
+  var acts   = [];
+  var layers = [];
+
+  map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
+    acts.push(feature.get('actid'));
+    layers.push(layer);
+  });
+
+  if (acts.length > 0 && layers.length > 0) {
+    let act = acts[acts.length - 1];
+    let layer = layers[layers.length - 1];
+
+    if (lastActivitySelected)
+      lastActivitySelected.style.background = "transparent";
+
+    let elem = document.getElementById(layer.getSource().get('actid'));
+    elem.style.background = "coral";
+    lastActivitySelected = elem;
+
+    highlightLayer(layer);
+  }
 });
