@@ -82,6 +82,7 @@ function highlightLayer(layer) {
   lastStyle = layer.getStyle();
   layer.setStyle(clickStyle);
   layer.setZIndex(10);
+  layer.setVisible(true);  // in case it was not
   lastClickedLayer = layer;
 }
 
@@ -257,6 +258,14 @@ function doToggle() {
   });
 }
 
+function setAllLayers(vis) {
+  map.getLayers().forEach((layer) => {
+    if (layer instanceof VectorLayer) {
+      layer.setVisible(vis);
+    }
+  });
+}
+
 function toggleRuns() {
   showRuns = !showRuns;
   doToggle();
@@ -281,6 +290,8 @@ showRunsBox.addEventListener('change', toggleRuns);
 showWalksBox.addEventListener('change', toggleWalks);
 showCyclingBox.addEventListener('change', toggleCycling);
 showOthersBox.addEventListener('change', toggleOthers);
+document.getElementById('hide-all').onclick = function() { setAllLayers(false); };
+document.getElementById('show-all').onclick = function() { setAllLayers(true); };
 
 map.on('pointermove', function(evt) {
   if (evt.dragging) {
@@ -303,9 +314,9 @@ map.on('click', function(evt) {
     let act = acts[acts.length - 1];
     let layer = layers[layers.length - 1];
 
+    // Update timeline list selection
     if (lastActivitySelected)
       lastActivitySelected.style.background = "transparent";
-
     let elem = document.getElementById(layer.getSource().get('actid'));
     elem.style.background = "coral";
     lastActivitySelected = elem;

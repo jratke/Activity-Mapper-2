@@ -1,5 +1,10 @@
 When selecting an activity by clicking on the map, also hightlight
 that activity in the activity timeline view on the right hand panel.
+(done, but also set the scroll bar position).
+
+Add a location description (city & state), to each timeline entry by
+searching the first/last coordinate of the activity.  Maybe query this
+info once separately.
 
 Add a location search bar at the top or bottom of the window to allow
 entering a street address or city search that will reposition the map
@@ -11,7 +16,6 @@ some soft of configurable delay.
 Add a progress indicator of some sort.  Perhaps something similar to:
 https://openlayers.org/en/latest/examples/image-load-events.html?q=projection.
 
-
 Figure out a way to draw activities as an animated track from start
 to finish.
 
@@ -20,7 +24,6 @@ Tree View of activities timeline (right side) by year, month, date
 GPX plots from Runkeeper activities that "auto-pause" can have a
 rendering that draws a straight line from one pause point to the next.
 Create a script that fixes that?
-
 
 For efficiency of browsing, may need to consider running a custom
 gis server that serves up the relevant activities in a map view by
