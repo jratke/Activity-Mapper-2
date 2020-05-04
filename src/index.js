@@ -9,7 +9,7 @@ import VectorSource from 'ol/source/Vector';
 import {Circle as CircleStyle, Fill, Stroke, Style} from 'ol/style';
 import OSM from 'ol/source/OSM';
 import {fromLonLat} from 'ol/proj';
-import {intersects} from 'ol/extent';
+//import {intersects} from 'ol/extent';
 import { csv } from 'd3-request';
 
 import allgpx from "../data/gpx/*.gpx";
@@ -40,7 +40,7 @@ var otherStyle = new Style({
   stroke: new Stroke({ color: '#0f0', width: 2 })
 });
 
-var clickStyle = new Style({
+var highlightStyle = new Style({
   stroke: new Stroke({ color: '#ffff00', width: 3 })    // TODO black outline around?
 });
 
@@ -74,13 +74,27 @@ var firstAct = null;
 var lastClickedLayer = null;
 var lastStyle = null;
 
+const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+// Fancy date formatting
+// d is a Date object
+// showDoW is a boolean that controls whether or not the Day of Week is included
+// output is a string
+function niceDate(d, showDoW) {
+  return "" + d.getFullYear() + " " + months[d.getMonth()] + " " + d.getDate() +
+     (showDoW ? " (" + days[d.getDay()] + ") " : " ") +
+     ((d.getHours() > 12) ? d.getHours() - 12 : d.getHours()) + ":" +
+     (d.getMinutes() < 10 ? "0" : "") + d.getMinutes() +
+     ((d.getHours() > 11) ? " pm" : " am");
+}
+
 function highlightLayer(layer) {
   if (lastClickedLayer != null) {
     lastClickedLayer.setStyle(lastStyle);
     lastClickedLayer.setZIndex(0);
   }
   lastStyle = layer.getStyle();
-  layer.setStyle(clickStyle);
+  layer.setStyle(highlightStyle);
   layer.setZIndex(10);
   layer.setVisible(true);  // in case it was not
   lastClickedLayer = layer;
@@ -100,16 +114,15 @@ function activitySelected(e) {
   let layer = actDict[aid].layer;
   highlightLayer(layer);
 
-  let extent = actDict[aid].layer.getSource().getExtent();  //actDict[aid].vsrc.getExtent();
-
-  let actStr = actDict[aid].date + " " + actDict[aid].type + "<br>" +
-      "Distance (mi) " + actDict[aid].distance + "<br>" +
+  let actStr =
+      niceDate(actDict[aid].date, true) + "<br>" +
+      actDict[aid].type + "<br>" +
+      "Distance " + actDict[aid].distance + " mi<br>" +
       "Duration: " + actDict[aid].duration + "<br>" +
       "Average Pace: " + actDict[aid].avepace + "<br>" +
       "Notes: " + actDict[aid].notes  + "<br>";
-      // + "Extent: " + extent;
 
-  map.getView().fit(extent);
+  map.getView().fit(layer.getSource().getExtent());
   document.getElementById('info').innerHTML = actStr;
 }
 
@@ -141,12 +154,10 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
         // the GPX data, so we now have the feature (which contains the
         // geometry) created.
         vectSrc.on('addfeature', function(e) {
-          //console.log(this.get('actid') + " is now " + vectSrc.getState());
           let aid = this.get('actid');
           e.feature.set('actid', aid);
 
           if (aid == firstAct) {
-            //console.log("first activity " + aid + "loaded and its extent is: " + this.getExtent());
             // position the map based on the most recent activity
             // (which is assumed to be the first one in the csv file)
             map.getView().fit(this.getExtent());
@@ -165,9 +176,10 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
         //    this.setVisible(false);
         //});
 
+        let date = new Date(Date.parse(data[i]["Date"]));
         actDict[data[i]["Activity Id"]] = {
           avepace: data[i]["Average Pace"],
-          date: data[i]["Date"],
+          date: date,
           distance: data[i]["Distance (mi)"],
           duration: data[i]["Duration"],
           notes: data[i]["Notes"],
@@ -175,7 +187,7 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
           layer: layer
         };
 
-        alist += "<li id=\"" + data[i]["Activity Id"] + "\">" + data[i]["Date"] + " - " + data[i]["Type"] + "</li>";
+        alist += "<li id=\"" + data[i]["Activity Id"] + "\">" + niceDate(date,false) + " - " + data[i]["Type"] + "</li>";
       }
       else {
         console.log("missing .gpx file in data/gpx/ for activity " + fileName);
@@ -213,22 +225,16 @@ var displayFeatureInfo = function(pixel) {
 
   if (acts.length > 0) {
     for (var i = 0; i < acts.length; i++) {
-      // Unfortunately, GPX format does not parse the <time> tag from a <trk> tag like it parses <name>
-      //info.push(features[i].get('time'));
-      // but we manually added the "actid" to each feature as it was loaded
-
-      // Amazingly, coordinate contains 4 values:  lat, lon, elevation, and time ("M")
-      /*
-      let firstCoord = features[i].getGeometry().getFirstCoordinate();
-      if (firstCoord.length == 4) {
-        var date = new Date(firstCoord[3]*1000);
-        console.log("date: " + date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + "-" + date.getHours() + "-" + date.getMinutes() + "-" + date.getSeconds())
-        // date.getDay will give day of week
-      }
-      */
+      // Each coordinate contains 4 values: lat, lon, elevation, and time ("M")
+      //let firstCoord = features[i].getGeometry().getFirstCoordinate();
+      //if (firstCoord.length == 4) {
+      //  var date = new Date(firstCoord[3]*1000);
+      //  console.log("date: " + date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() +
+      //    "-" + date.getHours() + "-" + date.getMinutes() + "-" + date.getSeconds())
+      //}
 
       let aid = acts[i];
-      let actStr = actDict[aid].date + " " + actDict[aid].type + " " + actDict[aid].distance + " mi " +
+      let actStr = niceDate(actDict[aid].date,false) + " " + actDict[aid].type + " " + actDict[aid].distance + " mi " +
                   "Dur: " + actDict[aid].duration + " " + "Pace: " + actDict[aid].avepace;
       info.push(actStr);
     }
