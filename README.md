@@ -1,6 +1,9 @@
 # Activity-Mapper-2
 Display GPX Activities on an Open Maps view using the Open Layers framework
 
+<img src="images/AM2_Montrose_Beach.PNG">
+
+
 Setup:
 
 ```
