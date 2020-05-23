@@ -3,13 +3,15 @@ import {Map, View, Feature} from 'ol';
 import GPX from 'ol/format/GPX';
 import GeoJSON from 'ol/format/GeoJSON';
 import {Tile as TileLayer, Vector as VectorLayer} from 'ol/layer';
+import ExtentInteraction from 'ol/interaction/Extent';
 import VectorImage from 'ol/layer';
 import XYZ from 'ol/source/XYZ';
 import VectorSource from 'ol/source/Vector';
 import {Circle as CircleStyle, Fill, Stroke, Style} from 'ol/style';
 import OSM from 'ol/source/OSM';
-import {fromLonLat} from 'ol/proj';
-//import {intersects} from 'ol/extent';
+import {getHeight} from 'ol/extent';
+import {getWidth} from 'ol/extent';
+import {intersects} from 'ol/extent';
 import { csv } from 'd3-request';
 
 import allgpx from "../data/gpx/*.gpx";
@@ -54,19 +56,33 @@ var styleMap = {
 // Dictionary of activities: key = activity id
 var actDict = {};
 
-var view = new View({
-  center: fromLonLat([-87.6298, 41.8781]),
-  zoom: 12,
-  minZoom: 5,
-  maxZoom: 18
-});
-
 var map = new Map({
   target: 'map',
   layers: [
     new TileLayer({source: new OSM()})
   ],
-  view: view
+  view: new View({
+    center: [0,0],
+    zoom: 12,
+    minZoom: 5,
+    maxZoom: 18
+  })
+});
+
+var mextent = new ExtentInteraction();
+map.addInteraction(mextent);
+mextent.setActive(false);
+
+// Enable interaction by holding shift
+window.addEventListener('keydown', function(event) {
+  if (event.keyCode == 16) {
+    mextent.setActive(true);
+  }
+});
+window.addEventListener('keyup', function(event) {
+  if (event.keyCode == 16) {
+    mextent.setActive(false);
+  }
 });
 
 var lastActivitySelected = null;
@@ -88,6 +104,14 @@ function niceDate(d, showDoW) {
      ((d.getHours() > 11) ? " pm" : " am");
 }
 
+function niceType(t) {
+  if (t === "Running") return "Run";
+  else if (t === "Walking") return "Walk";
+  else if (t === "Cycling") return "Bike";
+  else if (t === "Hiking") return "Hike";
+  else return "Unknown";
+}
+
 function highlightLayer(layer) {
   if (lastClickedLayer != null) {
     lastClickedLayer.setStyle(lastStyle);
@@ -98,6 +122,24 @@ function highlightLayer(layer) {
   layer.setZIndex(10);
   layer.setVisible(true);  // in case it was not
   lastClickedLayer = layer;
+}
+
+// Display info about activities in the "info" area
+// input is a list of activity ids
+function showActs(acts,showDoW) {
+  let info = [];
+
+  if (acts.length > 0) {
+    for (let i = 0; i < acts.length; i++) {
+      let aid = acts[i];
+
+      let actStr = niceDate(actDict[aid].date, showDoW) + " " + actDict[aid].type + " " +
+                   actDict[aid].distance + " mi " +
+                   "Dur: " + actDict[aid].duration + " " + "Pace: " + actDict[aid].avepace;
+      info.push(actStr);
+    }
+    document.getElementById('info').innerHTML = info.join('<br>') || '(unknown)';
+  }
 }
 
 // Handle when any activity on the right column is selected.
@@ -131,8 +173,9 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
 
   var alist = "<ul class=\"top\">";
 
-  for (let i = 0; i < data.length; i++) {
-    if (data[i]["GPX File"]) {
+  //for (let i = 0; i < 70; i++) {   // temp devel speed up
+  for (let i = 0; i < data.length; i++) { 
+      if (data[i]["GPX File"]) {
       var fileName = data[i]["Date"].replace(" ", "-").replace(/\:/g,"");
 
       if (allgpx[fileName]) {
@@ -145,9 +188,8 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
         });
         vectSrc.set('actid', data[i]["Activity Id"]);
 
-        if (!firstAct) {
+        if (!firstAct)
           firstAct = data[i]["Activity Id"];
-        }
 
         // The layers (and thus their features) are loaded asynchronously
         // This is called when VectorSource actually completes loading
@@ -157,11 +199,10 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
           let aid = this.get('actid');
           e.feature.set('actid', aid);
 
-          if (aid == firstAct) {
-            // position the map based on the most recent activity
-            // (which is assumed to be the first one in the csv file)
+          // position the map based on the most recent activity
+          // (which is assumed to be the first one in the csv file)
+          if (aid == firstAct)
             map.getView().fit(this.getExtent());
-          }
         });
 
         let layer = new VectorLayer({
@@ -169,12 +210,6 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
           style: styleMap[data[i]["Type"]],
         });
         map.addLayer(layer);
-
-        // This doesn't make things much faster
-        //layer.once('change', function(e) {
-        //  if (!intersects(this.getSource().getExtent(), map.getView().calculateExtent()))
-        //    this.setVisible(false);
-        //});
 
         let date = new Date(Date.parse(data[i]["Date"]));
         actDict[data[i]["Activity Id"]] = {
@@ -184,10 +219,16 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
           duration: data[i]["Duration"],
           notes: data[i]["Notes"],
           type: data[i]["Type"],
+          city: data[i]["City"],
+          state: data[i]["State"],
           layer: layer
         };
 
-        alist += "<li id=\"" + data[i]["Activity Id"] + "\">" + niceDate(date,false) + " - " + data[i]["Type"] + "</li>";
+        alist += "<li id=\"" + data[i]["Activity Id"] + "\">" + niceDate(date,false) +
+                 " - " + niceType(data[i]["Type"]);
+        if (data[i]["City"])
+          alist += " - " + data[i]["City"]; // + "," + data[i]["State"];
+        alist += "</li>";
       }
       else {
         console.log("missing .gpx file in data/gpx/ for activity " + fileName);
@@ -215,35 +256,6 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
 });
 
 
-var displayFeatureInfo = function(pixel) {
-  var acts = [];
-  var info = [];
-
-  map.forEachFeatureAtPixel(pixel, function(feature) {
-    acts.push(feature.get('actid'));
-  });
-
-  if (acts.length > 0) {
-    for (var i = 0; i < acts.length; i++) {
-      // Each coordinate contains 4 values: lat, lon, elevation, and time ("M")
-      //let firstCoord = features[i].getGeometry().getFirstCoordinate();
-      //if (firstCoord.length == 4) {
-      //  var date = new Date(firstCoord[3]*1000);
-      //  console.log("date: " + date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() +
-      //    "-" + date.getHours() + "-" + date.getMinutes() + "-" + date.getSeconds())
-      //}
-
-      let aid = acts[i];
-      let actStr = niceDate(actDict[aid].date,false) + " " + actDict[aid].type + " " + actDict[aid].distance + " mi " +
-                  "Dur: " + actDict[aid].duration + " " + "Pace: " + actDict[aid].avepace;
-      info.push(actStr);
-    }
-    document.getElementById('info').innerHTML = info.join('<br>') || '(unknown)';
-  } else {
-    document.getElementById('info').innerHTML = '&nbsp;';
-  }
-};
-
 function doToggle() {
   map.getLayers().forEach((layer, index, array) => {
     if (layer instanceof VectorLayer) {
@@ -266,9 +278,8 @@ function doToggle() {
 
 function setAllLayers(vis) {
   map.getLayers().forEach((layer) => {
-    if (layer instanceof VectorLayer) {
+    if (layer instanceof VectorLayer)
       layer.setVisible(vis);
-    }
   });
 }
 
@@ -299,6 +310,23 @@ showOthersBox.addEventListener('change', toggleOthers);
 document.getElementById('hide-all').onclick = function() { setAllLayers(false); };
 document.getElementById('show-all').onclick = function() { setAllLayers(true); };
 
+function displayFeatureInfo(pixel) {
+  var acts = [];
+  map.forEachFeatureAtPixel(pixel, function(feature) {
+    // features can include the interaction extent and its circle
+    if (feature.get('actid'))
+      acts.push(feature.get('actid'));
+  });
+
+  if (acts.length > 0) {
+    // intended to hide any active interaction extent
+    mextent.setActive(false);
+    showActs(acts, false);
+  } else {
+    //document.getElementById('info').innerHTML = '&nbsp;';
+  }
+};
+
 map.on('pointermove', function(evt) {
   if (evt.dragging) {
     return;
@@ -307,18 +335,57 @@ map.on('pointermove', function(evt) {
   displayFeatureInfo(pixel);
 });
 
+
+mextent.on('extentchanged', function(evt) {
+  //console.log("extend changed   active?: " + this.getActive() + " box: " + this.getExtent());
+  if (this.getActive() && this.getExtent() &&
+      getWidth(this.getExtent()) > 0 && getHeight(this.getExtent()) > 0) {
+    //console.log("look at activites in mextent "); // + this.getExtent());
+    var acts = [];
+    // Seems pretty brute-force, but somehow works efficiently
+    map.getLayers().forEach((layer, index, array) => {
+      if (layer instanceof VectorLayer) {
+          let ftrs = layer.getSource().getFeatures();
+          if (ftrs.length > 0) {
+            if (ftrs[0].getGeometry().intersectsExtent(this.getExtent())) {
+              acts.push(ftrs[0].get('actid'));
+            }
+          }
+      }
+    });
+
+    //console.log("found " + acts.length + " activites in mextent"); // and they are: " + acts);
+    showActs(acts, true);
+    mextent.setActive(false);
+  }
+});
+
 map.on('click', function(evt) {
   var acts   = [];
   var layers = [];
 
   map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
-    acts.push(feature.get('actid'));
-    layers.push(layer);
+    // Each point in a gpx plot's multi-line geometry actually contains
+    //  4 values: lat, lon, elevation, and time ("M")
+    //let firstCoord = features[i].getGeometry().getFirstCoordinate();
+    //if (firstCoord.length == 4) {
+    //  var date = new Date(firstCoord[3]*1000);
+    //  console.log("date: " + date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() +
+    //    "-" + date.getHours() + "-" + date.getMinutes() + "-" + date.getSeconds())
+    //}
+
+    // features can include the interaction extent and its circle, so ignore those
+    if (feature.get('actid')) {
+      acts.push(feature.get('actid'));
+      layers.push(layer);
+    }
   });
 
   if (acts.length > 0 && layers.length > 0) {
     let act = acts[acts.length - 1];
     let layer = layers[layers.length - 1];
+
+    mextent.setActive(false);
 
     // Update timeline list selection
     if (lastActivitySelected)
@@ -329,4 +396,5 @@ map.on('click', function(evt) {
 
     highlightLayer(layer);
   }
+
 });
