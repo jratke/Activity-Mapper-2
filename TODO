@@ -1,7 +1,3 @@
-When selecting an activity by clicking on the map, also hightlight
-that activity in the activity timeline view on the right hand panel.
-(done, but also set the scroll bar position).
-
 Clean up selection of Interaction Extent (rectangular region to
 display all activities from that region).  Remove pointer (and
 rectangle) when inactive?

@@ -340,9 +340,7 @@ mextent.on('extentchanged', function(evt) {
   //console.log("extend changed   active?: " + this.getActive() + " box: " + this.getExtent());
   if (this.getActive() && this.getExtent() &&
       getWidth(this.getExtent()) > 0 && getHeight(this.getExtent()) > 0) {
-    //console.log("look at activites in mextent "); // + this.getExtent());
     var acts = [];
-    // Seems pretty brute-force, but somehow works efficiently
     map.getLayers().forEach((layer, index, array) => {
       if (layer instanceof VectorLayer) {
           let ftrs = layer.getSource().getFeatures();
@@ -354,7 +352,6 @@ mextent.on('extentchanged', function(evt) {
       }
     });
 
-    //console.log("found " + acts.length + " activites in mextent"); // and they are: " + acts);
     showActs(acts, true);
     mextent.setActive(false);
   }
@@ -385,12 +382,17 @@ map.on('click', function(evt) {
     let act = acts[acts.length - 1];
     let layer = layers[layers.length - 1];
 
+    // TODO: clear extent interaction
     mextent.setActive(false);
 
-    // Update timeline list selection
+    // Update timeline list selection and scroll position
     if (lastActivitySelected)
       lastActivitySelected.style.background = "transparent";
-    let elem = document.getElementById(layer.getSource().get('actid'));
+    let elem = document.getElementById(act);
+    elem.scrollIntoView({
+      block: "center",
+      behavior: "smooth",
+    });
     elem.style.background = "coral";
     lastActivitySelected = elem;
 
