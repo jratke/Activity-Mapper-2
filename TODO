@@ -2,10 +2,6 @@ Clean up selection of Interaction Extent (rectangular region to
 display all activities from that region).  Remove pointer (and
 rectangle) when inactive?
 
-Add a location description (city & state), to each timeline entry by
-searching the first/last coordinate of the activity.  Maybe query this
-info once separately.
-
 Allow a specific URL request with a date parameter to load only the
 activity (or activities) from that date.
 
