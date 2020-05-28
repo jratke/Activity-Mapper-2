@@ -337,12 +337,11 @@ map.on('pointermove', function(evt) {
 
 
 mextent.on('extentchanged', function(evt) {
-  //console.log("extend changed   active?: " + this.getActive() + " box: " + this.getExtent());
   if (this.getActive() && this.getExtent() &&
       getWidth(this.getExtent()) > 0 && getHeight(this.getExtent()) > 0) {
     var acts = [];
     map.getLayers().forEach((layer, index, array) => {
-      if (layer instanceof VectorLayer) {
+      if (layer instanceof VectorLayer && layer.getVisible()) {
           let ftrs = layer.getSource().getFeatures();
           if (ftrs.length > 0) {
             if (ftrs[0].getGeometry().intersectsExtent(this.getExtent())) {
@@ -362,15 +361,6 @@ map.on('click', function(evt) {
   var layers = [];
 
   map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
-    // Each point in a gpx plot's multi-line geometry actually contains
-    //  4 values: lat, lon, elevation, and time ("M")
-    //let firstCoord = features[i].getGeometry().getFirstCoordinate();
-    //if (firstCoord.length == 4) {
-    //  var date = new Date(firstCoord[3]*1000);
-    //  console.log("date: " + date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() +
-    //    "-" + date.getHours() + "-" + date.getMinutes() + "-" + date.getSeconds())
-    //}
-
     // features can include the interaction extent and its circle, so ignore those
     if (feature.get('actid')) {
       acts.push(feature.get('actid'));
@@ -382,7 +372,7 @@ map.on('click', function(evt) {
     let act = acts[acts.length - 1];
     let layer = layers[layers.length - 1];
 
-    // TODO: clear extent interaction
+    // TODO: clear/hide extent interaction
     mextent.setActive(false);
 
     // Update timeline list selection and scroll position

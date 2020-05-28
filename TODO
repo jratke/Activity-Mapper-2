@@ -12,7 +12,6 @@ Add a location search bar at the top or bottom of the window to allow
 entering a street address or city search that will reposition the map
 view.
 
-
 Add a progress indicator of some sort.  Perhaps something similar to:
 https://openlayers.org/en/latest/examples/image-load-events.html?q=projection.
 
@@ -28,3 +27,14 @@ Create a script that fixes that?
 For efficiency of browsing, may need to consider running a custom
 gis server that serves up the relevant activities in a map view by
 URL request.
+
+Each point in a gpx plot's multi-line geometry actually contains
+4 values: lat, lon, elevation, and time ("M"), so there could be
+code like this:
+
+//let firstCoord = features[i].getGeometry().getFirstCoordinate();
+//if (firstCoord.length == 4) {
+//  var date = new Date(firstCoord[3]*1000);
+//  console.log("date: " + date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() +
+//    "-" + date.getHours() + "-" + date.getMinutes() + "-" + date.getSeconds())
+//}
