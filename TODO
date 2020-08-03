@@ -1,3 +1,10 @@
+Use
+https://openlayers.org/en/latest/examples/select-features.html
+or
+https://openlayers.org/en/latest/examples/box-selection.html
+instead of Extent Interaction to select features.
+
+
 Clean up selection of Interaction Extent (rectangular region to
 display all activities from that region).  Remove pointer (and
 rectangle) when inactive?

@@ -39,7 +39,7 @@ var hikeStyle = new Style({
 });
 
 var otherStyle = new Style({
-  stroke: new Stroke({ color: '#0f0', width: 2 })
+  stroke: new Stroke({ color: '#0ff', width: 2 })
 });
 
 var highlightStyle = new Style({
@@ -50,7 +50,8 @@ var styleMap = {
   Running: runStyle,
   Cycling: cycleStyle,
   Walking: walkStyle,
-  Hiking:  hikeStyle
+  Hiking:  hikeStyle,
+  Rowing:  otherStyle
 }
 
 // Dictionary of activities: key = activity id
@@ -81,7 +82,13 @@ window.addEventListener('keydown', function(event) {
 });
 window.addEventListener('keyup', function(event) {
   if (event.keyCode == 16) {
-    mextent.setActive(false);
+    //mextent.setActive(false);
+  }
+
+  if (event.keyCode == 27) {   // escape
+    //mextent.setExtent(null);
+    //mextent.setActive(false);
+    let iext = mextent.getExtent();
   }
 });
 
@@ -109,6 +116,7 @@ function niceType(t) {
   else if (t === "Walking") return "Walk";
   else if (t === "Cycling") return "Bike";
   else if (t === "Hiking") return "Hike";
+  else if (t === "Rowing") return "Row";
   else return "Unknown";
 }
 
