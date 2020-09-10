@@ -1,13 +1,14 @@
-Use
-https://openlayers.org/en/latest/examples/select-features.html
-or
-https://openlayers.org/en/latest/examples/box-selection.html
-instead of Extent Interaction to select features.
+Make selection from activity list column consistent with selection by
+mouse click or dragbox.
 
+Add a help pop-up or link of some sort that explains feature selection
+(clicking, holding shift, dragbox)
 
-Clean up selection of Interaction Extent (rectangular region to
-display all activities from that region).  Remove pointer (and
-rectangle) when inactive?
+Separate mouse-over display of activity details to show as "tool tip"
+style display on or near the mouse pointer.
+
+Show activity list "totals" for selected activites.
+
 
 Allow a specific URL request with a date parameter to load only the
 activity (or activities) from that date.

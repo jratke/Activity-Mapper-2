@@ -3,15 +3,13 @@ import {Map, View, Feature} from 'ol';
 import GPX from 'ol/format/GPX';
 import GeoJSON from 'ol/format/GeoJSON';
 import {Tile as TileLayer, Vector as VectorLayer} from 'ol/layer';
-import ExtentInteraction from 'ol/interaction/Extent';
+import {DragBox, Select} from 'ol/interaction';
 import VectorImage from 'ol/layer';
 import XYZ from 'ol/source/XYZ';
 import VectorSource from 'ol/source/Vector';
 import {Circle as CircleStyle, Fill, Stroke, Style} from 'ol/style';
 import OSM from 'ol/source/OSM';
-import {getHeight} from 'ol/extent';
-import {getWidth} from 'ol/extent';
-import {intersects} from 'ol/extent';
+import {platformModifierKeyOnly} from 'ol/events/condition';
 import { csv } from 'd3-request';
 
 import allgpx from "../data/gpx/*.gpx";
@@ -54,6 +52,9 @@ var styleMap = {
   Rowing:  otherStyle
 }
 
+var infoBox = document.getElementById('info');
+var mInfoBox = document.getElementById('mouseinfo');
+
 // Dictionary of activities: key = activity id
 var actDict = {};
 
@@ -70,25 +71,73 @@ var map = new Map({
   })
 });
 
-var mextent = new ExtentInteraction();
-map.addInteraction(mextent);
-mextent.setActive(false);
+// a normal select interaction to handle click
+var select = new Select();
+map.addInteraction(select);
 
-// Enable interaction by holding shift
-window.addEventListener('keydown', function(event) {
-  if (event.keyCode == 16) {
-    mextent.setActive(true);
+var selectedFeatures = select.getFeatures();
+
+// a DragBox interaction used to select features by drawing boxes
+var dragBox = new DragBox({
+  condition: platformModifierKeyOnly,
+});
+
+map.addInteraction(dragBox);
+
+// clear selection when drawing a new box and when clicking on the map
+dragBox.on('boxstart', function () {
+  selectedFeatures.clear();
+});
+
+dragBox.on('boxend', function () {
+  // features that intersect the box geometry are added to the
+  // collection of selected features
+
+  // if the view is not obliquely rotated the box geometry and
+  // its extent are equalivalent so intersecting features can
+  // be added directly to the collection
+  var rotation = map.getView().getRotation();
+  var oblique = rotation % (Math.PI / 2) !== 0;
+  var candidateFeatures = oblique ? [] : selectedFeatures;
+  var extent = dragBox.getGeometry().getExtent();
+
+  map.getLayers().forEach((layer, index, array) => {
+    if (layer instanceof VectorLayer && layer.getVisible()) {
+      layer.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
+        candidateFeatures.push(feature);
+      });
+    }
+  });
+
+  // when the view is obliquely rotated the box extent will
+  // exceed its geometry so both the box and the candidate
+  // feature geometries are rotated around a common anchor
+  // to confirm that, with the box geometry aligned with its
+  // extent, the geometries intersect
+  if (oblique) {
+    var anchor = [0, 0];
+    var geometry = dragBox.getGeometry().clone();
+    geometry.rotate(-rotation, anchor);
+    var extent$1 = geometry.getExtent();
+    candidateFeatures.forEach(function (feature) {
+      var geometry = feature.getGeometry().clone();
+      geometry.rotate(-rotation, anchor);
+      if (geometry.intersectsExtent(extent$1)) {
+        selectedFeatures.push(feature);
+      }
+    });
   }
 });
-window.addEventListener('keyup', function(event) {
-  if (event.keyCode == 16) {
-    //mextent.setActive(false);
-  }
 
-  if (event.keyCode == 27) {   // escape
-    //mextent.setExtent(null);
-    //mextent.setActive(false);
-    let iext = mextent.getExtent();
+selectedFeatures.on(['add', 'remove'], function () {
+  var acts = selectedFeatures.getArray().map(function (feature) {
+    return feature.get('actid');
+  });
+
+  if (acts.length > 0) {
+    showActivities(acts, true);
+  } else {
+    infoBox.innerHTML = 'No activities selected';
   }
 });
 
@@ -101,11 +150,11 @@ const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // Fancy date formatting
 // d is a Date object
-// showDoW is a boolean that controls whether or not the Day of Week is included
+// showDay is a boolean that controls whether or not the Day of Week is included
 // output is a string
-function niceDate(d, showDoW) {
+function niceDate(d, showDay) {
   return "" + d.getFullYear() + " " + months[d.getMonth()] + " " + d.getDate() +
-     (showDoW ? " (" + days[d.getDay()] + ") " : " ") +
+     (showDay ? " (" + days[d.getDay()] + ") " : " ") +
      ((d.getHours() > 12) ? d.getHours() - 12 : d.getHours()) + ":" +
      (d.getMinutes() < 10 ? "0" : "") + d.getMinutes() +
      ((d.getHours() > 11) ? " pm" : " am");
@@ -133,8 +182,8 @@ function highlightLayer(layer) {
 }
 
 // Display info about activities in the "info" area
-// input is a list of activity ids
-function showActs(acts,showDoW) {
+// acts: a list of activity ids
+function showActivities(acts, showDoW) {
   let info = [];
 
   if (acts.length > 0) {
@@ -146,15 +195,16 @@ function showActs(acts,showDoW) {
                    "Dur: " + actDict[aid].duration + " " + "Pace: " + actDict[aid].avepace;
       info.push(actStr);
     }
-    document.getElementById('info').innerHTML = info.join('<br>') || '(unknown)';
+    infoBox.innerHTML = info.join('<br>') || '(unknown)';
   }
 }
 
-// Handle when any activity on the right column is selected.
+// Handle when any activity on the right column (activity list) is clicked.
 // The list element (e) has its id field set to the activity-id
 // which is the key in the actDict dictionary
-function activitySelected(e) {
+function activityListToggle(e) {
   let aid = this.id;
+
   if (lastActivitySelected)
     lastActivitySelected.style.background = "transparent";
   this.style.background = "coral";
@@ -173,7 +223,7 @@ function activitySelected(e) {
       "Notes: " + actDict[aid].notes  + "<br>";
 
   map.getView().fit(layer.getSource().getExtent());
-  document.getElementById('info').innerHTML = actStr;
+  infoBox.innerHTML = actStr;
 }
 
 csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
@@ -181,20 +231,20 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
 
   var alist = "<ul class=\"top\">";
 
-  //for (let i = 0; i < 70; i++) {   // temp devel speed up
-  for (let i = 0; i < data.length; i++) { 
+  //for (let i = 0; i < 70; i++) {   // temp speed up for development
+  for (let i = 0; i < data.length; i++) {
       if (data[i]["GPX File"]) {
       var fileName = data[i]["Date"].replace(" ", "-").replace(/\:/g,"");
 
       if (allgpx[fileName]) {
-        var vectSrc = new VectorSource({
+        var vectorSource = new VectorSource({
           format: new GPX({
             url: allgpx[fileName],
             featureProjection: 'EPSG:3857'
           }),
           url: allgpx[fileName]
         });
-        vectSrc.set('actid', data[i]["Activity Id"]);
+        vectorSource.set('actid', data[i]["Activity Id"]);
 
         if (!firstAct)
           firstAct = data[i]["Activity Id"];
@@ -203,7 +253,7 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
         // This is called when VectorSource actually completes loading
         // the GPX data, so we now have the feature (which contains the
         // geometry) created.
-        vectSrc.on('addfeature', function(e) {
+        vectorSource.on('addfeature', function(e) {
           let aid = this.get('actid');
           e.feature.set('actid', aid);
 
@@ -214,7 +264,7 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
         });
 
         let layer = new VectorLayer({
-          source: vectSrc,
+          source: vectorSource,
           style: styleMap[data[i]["Type"]],
         });
         map.addLayer(layer);
@@ -258,7 +308,7 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
       let aid = nodeList[i].id;
       nodeList[i].style.color = styleMap[actDict[aid].type].getStroke().getColor();
       nodeList[i].style.cursor = "pointer";
-      nodeList[i].onclick = activitySelected;
+      nodeList[i].onclick = activityListToggle;
     }
   }
 });
@@ -327,11 +377,13 @@ function displayFeatureInfo(pixel) {
   });
 
   if (acts.length > 0) {
-    // intended to hide any active interaction extent
-    mextent.setActive(false);
-    showActs(acts, false);
+    let aid = acts[0];
+    let actStr = niceDate(actDict[aid].date, false) + " " + actDict[aid].type + " " +
+      actDict[aid].distance + " mi " +
+      "Dur: " + actDict[aid].duration + " " + "Pace: " + actDict[aid].avepace;
+    mInfoBox.innerHTML = actStr;
   } else {
-    //document.getElementById('info').innerHTML = '&nbsp;';
+    mInfoBox.innerHTML = '&nbsp;';
   }
 };
 
@@ -339,62 +391,5 @@ map.on('pointermove', function(evt) {
   if (evt.dragging) {
     return;
   }
-  var pixel = map.getEventPixel(evt.originalEvent);
-  displayFeatureInfo(pixel);
-});
-
-
-mextent.on('extentchanged', function(evt) {
-  if (this.getActive() && this.getExtent() &&
-      getWidth(this.getExtent()) > 0 && getHeight(this.getExtent()) > 0) {
-    var acts = [];
-    map.getLayers().forEach((layer, index, array) => {
-      if (layer instanceof VectorLayer && layer.getVisible()) {
-          let ftrs = layer.getSource().getFeatures();
-          if (ftrs.length > 0) {
-            if (ftrs[0].getGeometry().intersectsExtent(this.getExtent())) {
-              acts.push(ftrs[0].get('actid'));
-            }
-          }
-      }
-    });
-
-    showActs(acts, true);
-    mextent.setActive(false);
-  }
-});
-
-map.on('click', function(evt) {
-  var acts   = [];
-  var layers = [];
-
-  map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
-    // features can include the interaction extent and its circle, so ignore those
-    if (feature.get('actid')) {
-      acts.push(feature.get('actid'));
-      layers.push(layer);
-    }
-  });
-
-  if (acts.length > 0 && layers.length > 0) {
-    let act = acts[acts.length - 1];
-    let layer = layers[layers.length - 1];
-
-    // TODO: clear/hide extent interaction
-    mextent.setActive(false);
-
-    // Update timeline list selection and scroll position
-    if (lastActivitySelected)
-      lastActivitySelected.style.background = "transparent";
-    let elem = document.getElementById(act);
-    elem.scrollIntoView({
-      block: "center",
-      behavior: "smooth",
-    });
-    elem.style.background = "coral";
-    lastActivitySelected = elem;
-
-    highlightLayer(layer);
-  }
-
+  displayFeatureInfo(map.getEventPixel(evt.originalEvent));
 });
