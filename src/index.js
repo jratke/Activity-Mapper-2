@@ -40,10 +40,6 @@ var otherStyle = new Style({
   stroke: new Stroke({ color: '#0ff', width: 2 })
 });
 
-var highlightStyle = new Style({
-  stroke: new Stroke({ color: '#ffff00', width: 3 })    // TODO black outline around?
-});
-
 var styleMap = {
   Running: runStyle,
   Cycling: cycleStyle,
@@ -74,7 +70,6 @@ var map = new Map({
 // a normal select interaction to handle click
 var select = new Select();
 map.addInteraction(select);
-
 var selectedFeatures = select.getFeatures();
 
 // a DragBox interaction used to select features by drawing boxes
@@ -85,9 +80,9 @@ var dragBox = new DragBox({
 map.addInteraction(dragBox);
 
 // clear selection when drawing a new box and when clicking on the map
-dragBox.on('boxstart', function () {
-  selectedFeatures.clear();
-});
+//dragBox.on('boxstart', function () {
+//  selectedFeatures.clear();
+//});
 
 dragBox.on('boxend', function () {
   // features that intersect the box geometry are added to the
@@ -129,7 +124,8 @@ dragBox.on('boxend', function () {
   }
 });
 
-selectedFeatures.on(['add', 'remove'], function () {
+
+function showFeatures() {
   var acts = selectedFeatures.getArray().map(function (feature) {
     return feature.get('actid');
   });
@@ -139,12 +135,44 @@ selectedFeatures.on(['add', 'remove'], function () {
   } else {
     infoBox.innerHTML = 'No activities selected';
   }
+}
+
+selectedFeatures.on(['add'], function (event) {
+  let added = event.element.get('actid');
+  let layer = actDict[added].layer;
+
+  // find feature layer and bring it to the front...
+  layer.setZIndex(10);
+  layer.setVisible(true);  // in case it was not
+
+  // make sure activity is highlighted in activity list...
+  var htmlElem = document.getElementById(added);
+  htmlElem.style.background = "coral";
+
+  // Scroll the activity list to the newly added activity
+  htmlElem.scrollIntoView({
+    block: "center",
+    behavior: "smooth",
+  });
+
+  showFeatures();
 });
 
-var lastActivitySelected = null;
+selectedFeatures.on(['remove'], function (event) {
+  let removed = event.element.get('actid');
+  let layer = actDict[removed].layer;
+
+  // return feature layer Z to "normal"
+  layer.setZIndex(0);
+
+  // make sure activity is no longer highlighted in activity list...
+  var htmlElem = document.getElementById(removed);
+  htmlElem.style.background = "transparent";
+
+  showFeatures();
+});
+
 var firstAct = null;
-var lastClickedLayer = null;
-var lastStyle = null;
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -167,18 +195,6 @@ function niceType(t) {
   else if (t === "Hiking") return "Hike";
   else if (t === "Rowing") return "Row";
   else return "Unknown";
-}
-
-function highlightLayer(layer) {
-  if (lastClickedLayer != null) {
-    lastClickedLayer.setStyle(lastStyle);
-    lastClickedLayer.setZIndex(0);
-  }
-  lastStyle = layer.getStyle();
-  layer.setStyle(highlightStyle);
-  layer.setZIndex(10);
-  layer.setVisible(true);  // in case it was not
-  lastClickedLayer = layer;
 }
 
 // Display info about activities in the "info" area
@@ -205,25 +221,25 @@ function showActivities(acts, showDoW) {
 function activityListToggle(e) {
   let aid = this.id;
 
-  if (lastActivitySelected)
-    lastActivitySelected.style.background = "transparent";
-  this.style.background = "coral";
-  lastActivitySelected = this;
+  let alreadySelected = false;
+  let f = null;
+  selectedFeatures.forEach((feature) => {
+    if (feature.get('actid') == aid) {
+      alreadySelected = true;
+      f = feature;
+    }
+  });
 
-  // modify the layer
   let layer = actDict[aid].layer;
-  highlightLayer(layer);
 
-  let actStr =
-      niceDate(actDict[aid].date, true) + "<br>" +
-      actDict[aid].type + "<br>" +
-      "Distance " + actDict[aid].distance + " mi<br>" +
-      "Duration: " + actDict[aid].duration + "<br>" +
-      "Average Pace: " + actDict[aid].avepace + "<br>" +
-      "Notes: " + actDict[aid].notes  + "<br>";
-
-  map.getView().fit(layer.getSource().getExtent());
-  infoBox.innerHTML = actStr;
+  if (alreadySelected) {
+    selectedFeatures.remove(f);
+  } else {
+    let features = layer.getSource().getFeatures();
+    map.getView().fit(layer.getSource().getExtent());
+    if (features.length > 0)
+      selectedFeatures.push(features[0]);
+  }
 }
 
 csv(require('../data/csv/cardioActivities.csv'), function(error, data) {

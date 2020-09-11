@@ -1,5 +1,3 @@
-Make selection from activity list column consistent with selection by
-mouse click or dragbox.
 
 Add a help pop-up or link of some sort that explains feature selection
 (clicking, holding shift, dragbox)
@@ -9,6 +7,10 @@ style display on or near the mouse pointer.
 
 Show activity list "totals" for selected activites.
 
+Make use of "Show All" and "Hide All" buttons do the right thing with
+the checkmarks of the activity types.
+
+Allow toggling satellite view.
 
 Allow a specific URL request with a date parameter to load only the
 activity (or activities) from that date.
