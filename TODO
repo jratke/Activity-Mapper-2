@@ -7,9 +7,6 @@ style display on or near the mouse pointer.
 
 Show activity list "totals" for selected activites.
 
-Make use of "Show All" and "Hide All" buttons do the right thing with
-the checkmarks of the activity types.
-
 Allow toggling satellite view.
 
 Allow a specific URL request with a date parameter to load only the

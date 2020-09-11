@@ -351,29 +351,34 @@ function doToggle() {
 }
 
 function setAllLayers(vis) {
-  map.getLayers().forEach((layer) => {
-    if (layer instanceof VectorLayer)
-      layer.setVisible(vis);
-  });
+  showRuns = vis;
+  showCycling = vis;
+  showWalks = vis;
+  showOthers = vis;
+  showRunsBox.checked = vis;
+  showWalksBox.checked = vis;
+  showCyclingBox.checked = vis;
+  showOthersBox.checked = vis;
+  doToggle();
 }
 
 function toggleRuns() {
-  showRuns = !showRuns;
+  showRuns = showRunsBox.checked;
   doToggle();
 }
 
 function toggleWalks() {
-  showWalks = !showWalks;
+  showWalks = showWalksBox.checked;
   doToggle();
 }
 
 function toggleCycling() {
-  showCycling = !showCycling;
+  showCycling = showCyclingBox.checked;
   doToggle();
 }
 
 function toggleOthers() {
-  showOthers = !showOthers;
+  showOthers = showOthersBox.checked;
   doToggle();
 }
 
@@ -387,7 +392,6 @@ document.getElementById('show-all').onclick = function() { setAllLayers(true); }
 function displayFeatureInfo(pixel) {
   var acts = [];
   map.forEachFeatureAtPixel(pixel, function(feature) {
-    // features can include the interaction extent and its circle
     if (feature.get('actid'))
       acts.push(feature.get('actid'));
   });

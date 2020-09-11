@@ -7,13 +7,14 @@ Displays [GPX Activities](https://wiki.openstreetmap.org/wiki/GPX) on an [Open S
 
 * Web-based activity browsing using Open Street Maps (zoom, pan, as usual).
 * Capable of displaying *many* activities at the same time
-* Activities are color-coded (blue for runs, red for biking, green for walks)
+* Activities are color-coded (dark blue for runs, red for biking, green for walks, light blue for others)
 * Mouse over an activity for details (date/time, distance, etc.)
 * Click on an individual activity to highlight and see details
 * Activity timeline list on the right panel
-* Click on the activity from the timeline to highlight and zoom to that activity
-* Enable and disable the display of activity categories with the controls at the bottom
-* Click and drag while holding shift to draw a rectangle around certain activities.  Details on those activities are displayed.
+* Select an activity from the timeline to highlight and zoom to that activity
+* Enable and disable the display of activity categories with the controls below the map
+* Select multiple activities by holding shift while clicking on the map tracks.
+* Click and drag the mouse (while holding Control) to select activities on the map from a "DragBox" rectangle.
 
 See [TODO](TODO) file for possible future enhancements.
 
