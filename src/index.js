@@ -14,7 +14,6 @@ import { csv } from 'd3-request';
 
 import allgpx from "../data/gpx/*.gpx";
 
-var showRuns = true, showWalks = true, showCycling = true, showOthers = true;
 var showRunsBox    = document.getElementById('show-runs');
 var showWalksBox   = document.getElementById('show-walks');
 var showCyclingBox = document.getElementById('show-cycling');
@@ -354,7 +353,6 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
   }
 });
 
-// TODO try to simplify this by just using the show*Box.checked property
 function doToggle() {
   map.getLayers().forEach((layer, index, array) => {
     if (layer instanceof VectorLayer) {
@@ -363,54 +361,27 @@ function doToggle() {
       if (ftrs.length > 0) {
         let name = ftrs[0].get('name');
         if (name.startsWith('Run'))
-          layer.setVisible(showRuns);
+          layer.setVisible(showRunsBox.checked);
         else if (name.startsWith('Cycling'))
-          layer.setVisible(showCycling);
+          layer.setVisible(showCyclingBox.checked);
         else if (name.startsWith('Walk'))
-          layer.setVisible(showWalks);
+          layer.setVisible(showWalksBox.checked);
         else
-          layer.setVisible(showOthers);
+          layer.setVisible(showOthersBox.checked);
       }
     }
   });
 }
 
 function setAllLayers(vis) {
-  showRuns = vis;
-  showCycling = vis;
-  showWalks = vis;
-  showOthers = vis;
-  showRunsBox.checked = vis;
-  showWalksBox.checked = vis;
-  showCyclingBox.checked = vis;
-  showOthersBox.checked = vis;
+  showRunsBox.checked = showWalksBox.checked = showCyclingBox.checked = showOthersBox.checked = vis;
   doToggle();
 }
 
-function toggleRuns() {
-  showRuns = showRunsBox.checked;
-  doToggle();
-}
-
-function toggleWalks() {
-  showWalks = showWalksBox.checked;
-  doToggle();
-}
-
-function toggleCycling() {
-  showCycling = showCyclingBox.checked;
-  doToggle();
-}
-
-function toggleOthers() {
-  showOthers = showOthersBox.checked;
-  doToggle();
-}
-
-showRunsBox.addEventListener('change', toggleRuns);
-showWalksBox.addEventListener('change', toggleWalks);
-showCyclingBox.addEventListener('change', toggleCycling);
-showOthersBox.addEventListener('change', toggleOthers);
+showRunsBox.addEventListener('change', doToggle);
+showWalksBox.addEventListener('change', doToggle);
+showCyclingBox.addEventListener('change', doToggle);
+showOthersBox.addEventListener('change', doToggle);
 document.getElementById('hide-all').onclick = function() { setAllLayers(false); };
 document.getElementById('show-all').onclick = function() { setAllLayers(true); };
 
