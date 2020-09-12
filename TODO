@@ -4,8 +4,8 @@ Add a help pop-up or link of some sort that explains feature selection
 
 Separate mouse-over display of activity details to show as "tool tip"
 style display on or near the mouse pointer.
-
-Show activity list "totals" for selected activites.
+Great tooltip example:
+https://openlayers.org/en/latest/examples/kml-earthquakes.html
 
 Allow toggling satellite view.
 

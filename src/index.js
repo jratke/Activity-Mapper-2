@@ -124,56 +124,6 @@ dragBox.on('boxend', function () {
   }
 });
 
-
-function showFeatures() {
-  var acts = selectedFeatures.getArray().map(function (feature) {
-    return feature.get('actid');
-  });
-
-  if (acts.length > 0) {
-    showActivities(acts, true);
-  } else {
-    infoBox.innerHTML = 'No activities selected';
-  }
-}
-
-selectedFeatures.on(['add'], function (event) {
-  let added = event.element.get('actid');
-  let layer = actDict[added].layer;
-
-  // find feature layer and bring it to the front...
-  layer.setZIndex(10);
-  layer.setVisible(true);  // in case it was not
-
-  // make sure activity is highlighted in activity list...
-  var htmlElem = document.getElementById(added);
-  htmlElem.style.background = "coral";
-
-  // Scroll the activity list to the newly added activity
-  htmlElem.scrollIntoView({
-    block: "center",
-    behavior: "smooth",
-  });
-
-  showFeatures();
-});
-
-selectedFeatures.on(['remove'], function (event) {
-  let removed = event.element.get('actid');
-  let layer = actDict[removed].layer;
-
-  // return feature layer Z to "normal"
-  layer.setZIndex(0);
-
-  // make sure activity is no longer highlighted in activity list...
-  var htmlElem = document.getElementById(removed);
-  htmlElem.style.background = "transparent";
-
-  showFeatures();
-});
-
-var firstAct = null;
-
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // Fancy date formatting
@@ -197,10 +147,12 @@ function niceType(t) {
   else return "Unknown";
 }
 
-// Display info about activities in the "info" area
+// Display info about a list of activities in the "info" area
 // acts: a list of activity ids
 function showActivities(acts, showDoW) {
   let info = [];
+  let miles = 0.0;
+  let hours = 0, minutes = 0, seconds = 0;
 
   if (acts.length > 0) {
     for (let i = 0; i < acts.length; i++) {
@@ -209,11 +161,84 @@ function showActivities(acts, showDoW) {
       let actStr = niceDate(actDict[aid].date, showDoW) + " " + actDict[aid].type + " " +
                    actDict[aid].distance + " mi " +
                    "Dur: " + actDict[aid].duration + " " + "Pace: " + actDict[aid].avepace;
+      miles += parseFloat(actDict[aid].distance);
+      let times = actDict[aid].duration.split(':');
+      if (times.length == 3) {
+        seconds += parseInt(times[0]) * 60 * 60;
+        times = times.slice(1);
+      }
+      if (times.length == 2) {
+        seconds += parseInt(times[0]) * 60;
+        times = times.slice(1);
+      }
+      if (times.length == 1) {
+        seconds += parseInt(times[0]);
+      }
       info.push(actStr);
     }
+
+    hours = Math.floor(seconds / 3600);
+    if (hours > 0) {
+      seconds = seconds - (hours * 3600);
+    }
+
+    minutes = Math.floor(seconds / 60);
+    if (minutes > 0) {
+      seconds = seconds - (minutes * 60);
+    }
+
+    if (acts.length > 1) {
+      info.push(acts.length + " activities, " + miles.toFixed(2) + " miles, " + hours + " hours " + minutes + " minutes " + seconds + " seconds");
+    }
+
     infoBox.innerHTML = info.join('<br>') || '(unknown)';
   }
 }
+
+function showSelectedFeatureInfo() {
+  var acts = selectedFeatures.getArray().map(function (feature) {
+    return feature.get('actid');
+  });
+
+  if (acts.length > 0) {
+    showActivities(acts, true);
+  } else {
+    infoBox.innerHTML = 'No activities selected';
+  }
+}
+
+selectedFeatures.on(['add'], function (event) {
+  let added = event.element.get('actid');
+  let layer = actDict[added].layer;
+  layer.setZIndex(10);     // bring feature layer to the front
+  layer.setVisible(true);  // and make it visible (in case it was not)
+
+  // make sure activity is highlighted in activity list
+  var htmlElem = document.getElementById(added);
+  htmlElem.style.background = "coral";
+
+  // Scroll the activity list to the newly added activity
+  htmlElem.scrollIntoView({
+    block: "center",
+    behavior: "smooth",
+  });
+
+  showSelectedFeatureInfo();
+});
+
+selectedFeatures.on(['remove'], function (event) {
+  let removed = event.element.get('actid');
+  let layer = actDict[removed].layer;
+  layer.setZIndex(0);   // return feature layer Z to "normal"
+
+  // make sure activity is no longer highlighted in activity list
+  var htmlElem = document.getElementById(removed);
+  htmlElem.style.background = "transparent";
+
+  showSelectedFeatureInfo();
+});
+
+var firstAct = null;
 
 // Handle when any activity on the right column (activity list) is clicked.
 // The list element (e) has its id field set to the activity-id
@@ -329,7 +354,7 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
   }
 });
 
-
+// TODO try to simplify this by just using the show*Box.checked property
 function doToggle() {
   map.getLayers().forEach((layer, index, array) => {
     if (layer instanceof VectorLayer) {
