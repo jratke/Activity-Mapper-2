@@ -1,17 +1,17 @@
 import 'ol/ol.css';
-import {Map, View, Feature} from 'ol';
+import {Map, View} from 'ol';
 import GPX from 'ol/format/GPX';
-import GeoJSON from 'ol/format/GeoJSON';
 import {Tile as TileLayer, Vector as VectorLayer} from 'ol/layer';
 import {DragBox, Select} from 'ol/interaction';
-import VectorImage from 'ol/layer';
-import XYZ from 'ol/source/XYZ';
 import VectorSource from 'ol/source/Vector';
 import {Circle as CircleStyle, Fill, Stroke, Style} from 'ol/style';
 import OSM from 'ol/source/OSM';
+import BingMaps from 'ol/source/BingMaps';
+import XYZ from 'ol/source/XYZ';
 import {platformModifierKeyOnly} from 'ol/events/condition';
-import { csv } from 'd3-request';
+import {Attribution, defaults as defaultControls} from 'ol/control';
 
+import { csv } from 'd3-request';
 import allgpx from "../data/gpx/*.gpx";
 
 var showRunsBox    = document.getElementById('show-runs');
@@ -47,17 +47,61 @@ var styleMap = {
   Rowing:  otherStyle
 }
 
+var baseStyles = [
+  'OSM',
+  'RoadOnDemand',
+  'Aerial',
+  'AerialWithLabelsOnDemand',
+  'ArcGIS' ];
+
+var baseLayers = [];
+baseLayers.push(
+  new TileLayer({source: new OSM()})
+);
+
+for (var i = 1; i < baseStyles.length - 1; ++i) {
+  baseLayers.push(
+    new TileLayer({
+      visible: false,
+      preload: 0, //Infinity,
+      source: new BingMaps({
+        key: 'Your Bing Maps Key from http://www.bingmapsportal.com/ here',
+        imagerySet: baseStyles[i],
+        // Open Layers docs say to use maxZoom 19 to see stretched tiles instead of
+        // the BingMaps "no photos at this zoom level" tiles, but I limit maxZoom
+        // to 18 in general.
+        // maxZoom: 19
+      }),
+    })
+  );
+}
+
+baseLayers.push(
+  new TileLayer({
+    visible: false,
+    source: new XYZ({
+      attributions: 'Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community',
+      url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      maxZoom: 18
+    })
+  })
+);
+
 var infoBox = document.getElementById('info');
 var mInfoBox = document.getElementById('mouseinfo');
 
 // Dictionary of activities: key = activity id
 var actDict = {};
 
+// Need to make a custom Attribution to override "collapsible"
+var attribution = new Attribution({
+  collapsible: true,
+});
+
 var map = new Map({
   target: 'map',
-  layers: [
-    new TileLayer({source: new OSM()})
-  ],
+  layers: baseLayers,
+  controls: defaultControls({attribution: false}).extend([attribution]),
   view: new View({
     center: [0,0],
     zoom: 12,
@@ -65,6 +109,16 @@ var map = new Map({
     maxZoom: 18
   })
 });
+
+var layerSelect = document.getElementById('layer-select');
+function onBaseLayerChange() {
+  var style = layerSelect.value;
+  for (var i = 0; i < baseLayers.length; ++i) {
+    baseLayers[i].setVisible(baseStyles[i] === style);
+  }
+}
+layerSelect.addEventListener('change', onBaseLayerChange);
+onBaseLayerChange();
 
 // a normal select interaction to handle click
 var select = new Select();
@@ -170,25 +224,21 @@ function showActivities(acts, showDoW) {
         seconds += parseInt(times[0]) * 60;
         times = times.slice(1);
       }
-      if (times.length == 1) {
+      if (times.length == 1)
         seconds += parseInt(times[0]);
-      }
       info.push(actStr);
     }
 
     hours = Math.floor(seconds / 3600);
-    if (hours > 0) {
+    if (hours > 0)
       seconds = seconds - (hours * 3600);
-    }
 
     minutes = Math.floor(seconds / 60);
-    if (minutes > 0) {
+    if (minutes > 0)
       seconds = seconds - (minutes * 60);
-    }
 
-    if (acts.length > 1) {
+    if (acts.length > 1)
       info.push(acts.length + " activities, " + miles.toFixed(2) + " miles, " + hours + " hours " + minutes + " minutes " + seconds + " seconds");
-    }
 
     infoBox.innerHTML = info.join('<br>') || '(unknown)';
   }
@@ -273,7 +323,7 @@ csv(require('../data/csv/cardioActivities.csv'), function(error, data) {
 
   //for (let i = 0; i < 70; i++) {   // temp speed up for development
   for (let i = 0; i < data.length; i++) {
-      if (data[i]["GPX File"]) {
+    if (data[i]["GPX File"]) {
       var fileName = data[i]["Date"].replace(" ", "-").replace(/\:/g,"");
 
       if (allgpx[fileName]) {

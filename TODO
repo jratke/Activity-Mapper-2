@@ -7,7 +7,7 @@ style display on or near the mouse pointer.
 Great tooltip example:
 https://openlayers.org/en/latest/examples/kml-earthquakes.html
 
-Allow toggling satellite view.
+Scale line?
 
 Allow a specific URL request with a date parameter to load only the
 activity (or activities) from that date.
